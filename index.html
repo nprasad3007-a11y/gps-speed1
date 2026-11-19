@@ -1,0 +1,41 @@
+<!DOCTYPE html><html><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>GPS Speed</title>
+<style>
+body{font-family:system-ui;margin:0;padding:16px;background:#0e1419;color:#e8eef3}
+#spd{font-size:80px;font-weight:700;text-align:center}
+.k{color:#8fa0ae;font-size:12px}.v{font-size:18px;margin-bottom:8px}
+button{width:100%;padding:14px;font-size:16px;margin:6px 0}
+</style></head><body>
+<div id="spd">--</div><div style="text-align:center" id="u">km/h</div>
+<button onclick="unit()">Change unit</button>
+<button id="go" onclick="toggle()">Start GPS</button>
+<div class="k">Latitude</div><div class="v" id="lat">--</div>
+<div class="k">Longitude</div><div class="v" id="lon">--</div>
+<div class="k">Accuracy / Altitude / Heading</div><div class="v" id="ex">--</div>
+<div class="k">Max speed / Distance</div><div class="v" id="trip">--</div>
+<script>
+const U=[["km/h",3.6],["knots",1.943844],["m/s",1],["mph",2.236936]];
+let ui=0,id=null,last=null,dist=0,max=0,sp=0;
+function unit(){ui=(ui+1)%4;u.textContent=U[ui][0];spd.textContent=(sp*U[ui][1]).toFixed(0)}
+function hav(a,b,c,d){const r=x=>x*Math.PI/180,R=6371008.8;
+ const h=Math.sin(r(c-a)/2)**2+Math.cos(r(a))*Math.cos(r(c))*Math.sin(r(d-b)/2)**2;
+ return 2*R*Math.asin(Math.sqrt(h))}
+function toggle(){
+ if(id!==null){navigator.geolocation.clearWatch(id);id=null;go.textContent="Start GPS";return}
+ id=navigator.geolocation.watchPosition(p=>{
+  const c=p.coords;
+  sp=(c.speed==null||c.speed<0.3)?0:c.speed;   // Doppler speed from GNSS
+  if(last&&c.accuracy<50){const d=hav(last.a,last.b,c.latitude,c.longitude);
+   if(d>Math.max(3,c.accuracy/3)){dist+=d;last={a:c.latitude,b:c.longitude}}}
+  else if(!last)last={a:c.latitude,b:c.longitude};
+  max=Math.max(max,sp);
+  spd.textContent=(sp*U[ui][1]).toFixed(0);
+  lat.textContent=c.latitude.toFixed(6);lon.textContent=c.longitude.toFixed(6);
+  ex.textContent=c.accuracy.toFixed(0)+" m / "+(c.altitude==null?"n/a":c.altitude.toFixed(0)+" m")+" / "+(c.heading==null?"n/a":c.heading.toFixed(0)+"°");
+  trip.textContent=(max*3.6).toFixed(0)+" km/h / "+(dist/1000).toFixed(2)+" km";
+ },e=>alert("GPS error: "+e.message),{enableHighAccuracy:true,maximumAge:0,timeout:20000});
+ go.textContent="Stop GPS";
+ if(navigator.wakeLock)navigator.wakeLock.request("screen").catch(()=>{});
+}
+</script></body></html>
